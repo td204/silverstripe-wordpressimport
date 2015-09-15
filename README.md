@@ -14,7 +14,20 @@
 
 ##Installation Instructions
 
-    composer require silverstripe/wordpressimport 0.3.*
+    composer require thiagovandieten/export-wordpresstosilverstripe *
+
+Note: currently it only works with silverstripe/blog 1.x.
+If you have installed silverstripe 2.x, downgrade to 1.x:
+
+    composer require silverstripe/blog 1.x
+
+WARNING: downgrade was only tested on an empty blog, if you have already entered any content on your blog, this may have some unexpected results!
+
+After importing the wordpress .xml file you can safely upgrade to silverstripe/blog 2.x again:
+
+    composer require silverstripe/blog 2.x
+
+NOTE: After upgrading from blog 1.x to 2.x don't forget to run dev/tasks/BlogMigrationTask as indicated in the silverstripe/blog documentation.
 
 ###Usage Overview
 It will change any links to uploaded images and 
@@ -38,6 +51,7 @@ wordpress posts in the form /yyyy/mm/name-of-post/
 1. Content can lose a lot of the formatting coming from Wordpress.
 1. Perhaps parsing the content through a nl2br might help?
 1. Image captions need to be catered for and styled otherwise they end up looking like un-parse shortcodes.
+1. Currently only works with silverstripe/blog 1.x.
 
 
 ##License

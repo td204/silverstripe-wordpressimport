@@ -9,25 +9,26 @@
 ##Requirements
 * mod_rewrite (optional, if you need to cater for old incoming links and are using Apache)
 * SilverStripe Framework & CMS 3.1.x
-* silverstripe/blog
+* silverstripe/blog 1.*
 * silverstripe/comments
 
 ##Installation Instructions
 
-    composer require thiagovandieten/export-wordpresstosilverstripe *
+    composer require camfindlay/silverstripe-wordpressimport
 
-Note: currently it only works with silverstripe/blog 1.x.
-If you have installed silverstripe 2.x, downgrade to 1.x:
+This module currently it only works with silverstripe/blog 1.x.
+
+WORKAROUND: If you have installed silverstripe 2.x, downgrade to 1.x:
 
     composer require silverstripe/blog 1.x
-
-WARNING: downgrade was only tested on an empty blog, if you have already entered any content on your blog, this may have some unexpected results!
 
 After importing the wordpress .xml file you can safely upgrade to silverstripe/blog 2.x again:
 
     composer require silverstripe/blog 2.x
 
 NOTE: After upgrading from blog 1.x to 2.x don't forget to run dev/tasks/BlogMigrationTask as indicated in the silverstripe/blog documentation.
+
+WARNING: downgrade was only tested on an empty blog, if you have already entered any content on your blog, this may have some unexpected results!
 
 ###Usage Overview
 It will change any links to uploaded images and 
@@ -52,34 +53,4 @@ wordpress posts in the form /yyyy/mm/name-of-post/
 1. Perhaps parsing the content through a nl2br might help?
 1. Image captions need to be catered for and styled otherwise they end up looking like un-parse shortcodes.
 1. Currently only works with silverstripe/blog 1.x.
-
-
-##License
-Copyright (c) 2008, Silverstripe Ltd.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-     * Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
-     * Redistributions in binary form must reproduce the above copyright
-       notice, this list of conditions and the following disclaimer in the
-       documentation and/or other materials provided with the distribution.
-     * Neither the name of the Silverstripe Ltd. nor the
-       names of its contributors may be used to endorse or promote products
-       derived from this software without specific prior written permission.
-
- THIS SOFTWARE IS PROVIDED BY Silverstripe Ltd. ``AS IS'' AND ANY
- EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- DISCLAIMED. IN NO EVENT SHALL Silverstripe Ltd. BE LIABLE FOR ANY
- DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-
 

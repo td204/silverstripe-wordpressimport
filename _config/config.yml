@@ -11,10 +11,12 @@ Director:
 Member:
   extensions:
     - WpAuthorLogin
-    
+File:
+  allowed_extensions:
+    - xml
 ---
 Only:
-  moduleexists: 'silverstripe-blog'
+  moduleexists: 'blog'
 ---
 Blog:
   extensions:

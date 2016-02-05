@@ -49,7 +49,7 @@ class WordpressImportField extends UploadField {
 	 * @return string
 	**/
 	public function Field($properties = array()) {
-		Requirements::javascript("blogger-import/js/WordpressImportField.js");
+		Requirements::javascript("wordpressimport/js/WordpressImportField.js");
 		$this->setConfig("urlEvaluate", $this->link("evaluate"));
 		$this->setConfig("urlImport", $this->link("import"));
 		$this->setOverwriteWarning(false);

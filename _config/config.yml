@@ -1,0 +1,21 @@
+---
+Name: wordpressimport
+After:
+  - 'framework/*'
+  - 'cms/*'
+---
+Director:
+  rules:
+    'WpImporter_Controller//$Action/$ID/$OtherID': 'WpImporter_Controller'
+Blog:
+  extensions: 
+    - WpImporter
+BlogPost:
+  extensions:
+    - WpImportedObject
+Comment:
+  extensions:
+    - WpImportedObject
+Member:
+  extensions:
+    - WpAuthorLogin

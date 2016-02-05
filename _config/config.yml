@@ -7,15 +7,32 @@ After:
 Director:
   rules:
     'WpImporter_Controller//$Action/$ID/$OtherID': 'WpImporter_Controller'
-Blog:
-  extensions: 
-    - WpImporter
-BlogPost:
-  extensions:
-    - WpImportedObject
-Comment:
-  extensions:
-    - WpImportedObject
+    'import//$Action': 'WordpressParser'
 Member:
   extensions:
     - WpAuthorLogin
+    
+---
+Only:
+  moduleexists: 'silverstripe-blog'
+---
+Blog:
+  extensions:
+    - 'WordpressImportBlogExtension'
+
+BlogPost:
+  extensions:
+    - 'WpImportedObject'
+
+
+---
+Only:
+  moduleexists: 'comments'
+---
+Comment:
+  extensions:
+    - 'WpImportedObject'
+
+WordpressParser:
+  extensions:
+    - 'WordpressCommentImport'

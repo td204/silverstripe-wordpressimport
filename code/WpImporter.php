@@ -113,6 +113,12 @@ class WpImporter_Controller extends Controller
         // so we can use update here.
         $entry->update($post);
 
+        // write this post to the database before modifying the list of authors
+        // because of the onBeforeWrite logic in BlogPost->onBeforeWrite
+        // this will use the current logged in user as the author of this post
+        // but we will override that below
+        $entry->write();
+
         //Assign the author as a Member object
         //TODO deal with XML that doesn't define authors
         if($author = Member::get()->filter(array('WordpressAuthorLogin' => $post['AuthorLogin']))->first()) {
@@ -163,7 +169,7 @@ class WpImporter_Controller extends Controller
     protected function importAuthor($author)
     {
 
-               //check if a user already exists with this email address if they do get the object and add the wp username
+        //check if a user already exists with this email address if they do get the object and add the wp username
         if(!$member = Member::get()->filter(array('Email' => $author['Email']))->first())
         {
 

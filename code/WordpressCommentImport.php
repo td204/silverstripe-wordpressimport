@@ -20,6 +20,7 @@ class WordpressCommentImport extends Extension {
 			$c->Name = (string) $comment->comment_author;
 			$c->Email = (string) $comment->comment_author_email;
 			$c->URL = (string) $comment->comment_author_url;
+			$c->BaseClass = (string) "SiteTree";
 			$c->Comment = (string) $comment->comment_content;
 			$c->Created = (string) $comment->comment_date;
 			$c->Moderated = !!$comment->comment_approved;

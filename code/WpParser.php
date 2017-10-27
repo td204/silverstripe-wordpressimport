@@ -84,8 +84,14 @@ class WpParser
     public function ParseBlogContent($content)
     {
 
+        //  read config option, if not set default to 'uploads'
+        $regex = Config::inst()->get('BlogImport', 'ImageReplaceRegx');
+        if (empty($regex)) {
+            $regex = '/(http:\/\/[\w\.\/]+)?\/wp-content\/uploads\//i';
+        }
+
         // Convert wordpress-style image links to silverstripe asset filepaths
-        $content = preg_replace('/(http:\/\/[\w\.\/]+)?\/wp-content\/uploads\//i', '/assets/Uploads/', $content);
+        $content = preg_replace($regex, '/assets/Uploads/', $content);
 
         // Split multi-line blocks into paragraphs
         $split = preg_split('/\s*\n\s*\n\s*/im', $content);

@@ -126,6 +126,7 @@ class WpParser
             'Name' => (string) $comment->comment_author,
             'Email' => (string) $comment->comment_author_email,
             'URL' => (string) $comment->comment_author_url,
+            'BaseClass' => (string) "SiteTree",
             'Comment' => (string) $comment->comment_content,
             'Created' => (string) $comment->comment_date,
             'Moderated' => !!$comment->comment_approved,

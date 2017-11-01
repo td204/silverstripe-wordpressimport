@@ -601,9 +601,6 @@ class WordpressImporter extends Object {
 			else
 				$content .= "<p>$paragraph</p>";
 		}
-		
-		// Split single-line blocks with line-breaks
-		$content = nl2br($content);
 
 		return $content;
 	}

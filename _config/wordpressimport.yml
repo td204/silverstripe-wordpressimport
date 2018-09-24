@@ -1,12 +1,16 @@
 ---
 Name: wordpressimport
 ---
-BlogHolder:
+Blog:
   extensions: 
     - WpImporter
-BlogEntry:
+BlogPost:
   extensions:
     - WpImportedObject
-Comment:
-  extensions:
-    - WpImportedObject
+Director:
+  rules:
+    'WpImporter_Controller': 'WpImporter_Controller'
+
+#Comment:
+#  extensions:
+#    - WpImportedObject

@@ -37,7 +37,7 @@ class WpParser
     public static $allowed_category_domains = array('category', 'post_tag');
 
     /**
-     * List of "page" types that should be converted to BlogEntry items
+     * List of "page" types that should be converted to BlogPost items
      * @param array List of valid types
      */
     public static $allowed_page_types = array('post');
@@ -86,9 +86,6 @@ class WpParser
      */
     public function ParseBlogContent($content)
     {
-
-        // Convert wordpress-style image links to silverstripe asset filepaths
-        $content = preg_replace('/(http:\/\/[\w\.\/]+)?\/wp-content\/uploads\//i', '/assets/Uploads/', $content);
 
         // Split multi-line blocks into paragraphs
         $split = preg_split('/\s*\n\s*\n\s*/im', $content);

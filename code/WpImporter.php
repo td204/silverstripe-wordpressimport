@@ -1,8 +1,7 @@
 <?php
-require('WpParser.php');
 
 /*
- * Decorates a BlogHolder page type, specified in _config.php
+ * Decorates a Blog page type, specified in _config.php
  */
 
 class WpImporter extends DataExtension
@@ -10,7 +9,7 @@ class WpImporter extends DataExtension
 
     public function updateCMSFields(FieldList $fields)
     {
-        $html_str = '<iframe name="WpImport" src="WpImporter_Controller/index/' . $this->owner->ID . '" width="500"> </iframe>';
+        $html_str = '<iframe name="WpImport" src="WpImporter_Controller/index/' . $this->owner->ID . '" width="500" style="width:100%;" height="500"> </iframe>';
         $fields->addFieldToTab('Root.Import', new LiteralField("ImportIframe", $html_str));
     }
 }
@@ -59,13 +58,13 @@ class WpImporter_Controller extends Controller
     public function UploadForm()
     {
         return Form::create($this, "UploadForm",
-                        FieldList::create(
-                            FileField::create("XMLFile", 'Wordpress XML file'),
-                            HiddenField::create("BlogHolderID", '', $this->getBlogHolderID())
-                        ),
-                        FieldList::create(
-                            FormAction::create('doUpload', 'Import Wordpress XML file')
-                        )
+            FieldList::create(
+                FileField::create("XMLFile", 'Wordpress XML file'),
+                HiddenField::create("BlogHolderID", '', $this->getBlogHolderID())
+            ),
+            FieldList::create(
+                FormAction::create('doUpload', 'Import Wordpress XML file')
+            )
         );
     }
 
@@ -95,11 +94,11 @@ class WpImporter_Controller extends Controller
 
     protected function getOrCreatePost($wordpressID)
     {
-        if ($wordpressID && $post = BlogEntry::get()->filter(array('WordpressID' => $wordpressID))->first()) {
+        if ($wordpressID && $post = BlogPost::get()->filter(array('WordpressID' => $wordpressID))->first()) {
             return $post;
         }
 
-        return BlogEntry::create();
+        return BlogPost::create();
     }
 
     protected function importPost($post)
@@ -114,18 +113,31 @@ class WpImporter_Controller extends Controller
 
         $entry->update($post);
 
-        //Create an initial write as a draft copy otherwise a write() 
+        //Create an initial write as a draft copy otherwise a write()
         //in SS3.1.2+ will go live and never have a draft Version.
         //@see http://doc.silverstripe.org/framework/en/changelogs/3.1.2#default-current-versioned-
         //stage-to-live-rather-than-stage for details.
         $entry->writeToStage('Stage');
-        
+
+        $oldMode = Versioned::get_reading_mode();
+
+        // make sure to store Title as well
+        Versioned::reading_stage('Stage');
+        $entry = $this->getOrCreatePost($post['WordpressID']);
+
+        $entry->Title = $post['Title'];
+        $entry->write();
+
+        Versioned::set_reading_mode($oldMode);
+
         //If the post was published on WP, now ensure it is also live in SS.
         if ($post['IsPublished']) {
-            $entry->publish("Stage", "Live");
+            $entry->Title = $post['Title'];
+            $entry->doPublish();
         }
 
         $this->importComments($post, $entry);
+        die;
 
         return $entry;
     }

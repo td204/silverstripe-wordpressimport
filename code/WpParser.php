@@ -1,7 +1,10 @@
 <?php
 /*
  * WpParser class
- * Version		0.1
+ * Version		0.2
+ * @author  Terry Duivesteijn <terry@loungeroom.nl>
+ * @website https://github.com/td204/
+ *
  * By			Saophalkun Ponlu @ Silverstripe
  *
  * This class is responsible for parsing Wordpress XML file into array of post entries.
@@ -78,7 +81,7 @@ class WpParser
 
     private function copyImageToAssets($remote, $dir)
     {
-        $url = (string) $remote;
+        $url = (string)$remote;
         $split = explode("/", $url);
         $filename = end($split);
 
@@ -93,7 +96,7 @@ class WpParser
         $absPath = Controller::join_links(Director::baseFolder(), $folderName, $filename);
 
         if (!file_exists($absPath)) {
-            $check = File::get()->filter('Filename', $folderName.$filename);
+            $check = File::get()->filter('Filename', $folderName . $filename);
             foreach ($check as $item) {
                 $item->delete();
             }
@@ -110,7 +113,7 @@ class WpParser
             }
         }
 
-        return $folderName.$filename;
+        return $folderName . $filename;
     }
 
     /**
@@ -134,14 +137,14 @@ class WpParser
         preg_match_all($fetchImageRegex, $content, $matches);
 
         if (!empty($matches[0])) {
-            foreach($matches[0] as $imageURL) {
+            foreach ($matches[0] as $imageURL) {
                 // avoid duplicate images
                 if (!in_array($imageURL, $process, true)) {
                     $process[] = $imageURL;
                 }
             }
 
-            foreach($process as $image) {
+            foreach ($process as $image) {
                 $imageName = $this->copyImageToAssets($image, $locationBlogImages);
             }
 

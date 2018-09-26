@@ -1,6 +1,6 @@
 <?php
 
-class DeletPostsTask extends BuildTask
+class DeletePostsTask extends BuildTask
 {
     protected $title = 'Delete blog posts task';
 

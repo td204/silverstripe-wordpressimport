@@ -1,17 +1,20 @@
 <?php
 /*
- * WpParser class 
- * Version		0.1
+ * WpParser class
+ * Version		0.2
+ * @author  Terry Duivesteijn <terry@loungeroom.nl>
+ * @website https://github.com/td204/
+ *
  * By			Saophalkun Ponlu @ Silverstripe
  *
- * This class is responsible for parsing Wordpress XML file into array of post entries. 
+ * This class is responsible for parsing Wordpress XML file into array of post entries.
  * Post entry itself is an array containing entry data
  * Post entry (array):
  * 		Title 			(mapped to SS blog entry)
- * 		Link 
+ * 		Link
  * 		Author 			(mapped to SS blog entry)
  * 		Date 			(mapped to SS blog entry)
- * 		UrlTitle 
+ * 		UrlTitle
  * 		Tags 			(mapped to SS blog entry)
  * 		Content 		(mapped to SS blog entry)
  * 		Comments (array)
@@ -29,12 +32,6 @@ class WpParser
 
     // array of post entries
     private $posts;
-
-    /**
-     * List of "tag" types that should be converted to tags
-     * @var array List of valid tags
-     */
-    public static $allowed_category_domains = array('category', 'post_tag');
 
     /**
      * List of "page" types that should be converted to BlogEntry items
@@ -58,25 +55,65 @@ class WpParser
     }
 
     /**
-     * Extracts the categories from the blog post in the form of a single tag
+     * Extracts the tags from the blog post in the form of a single tag
      * value suitable for BlogPost
-     * @param array $cats list of categories
-     * @return string A string of comma separated tag values
+     * @param array $items list of tags
+     * @param string $type the type of item to filter on
+     * @return array array of taxonomic values
      */
-    public function ParseTags($cats)
+    public function ParseTaxonomy($items, $type)
     {
         // Uses this array to check if the category to be added already exists in the post
-        $categories = array();
-        foreach ($cats as $cat) {
+        $taxonomy = array();
+        foreach ($items as $item) {
+            //filter for the type
+
             // Cleanup multiline and other whitespace characters
-            $catName = html_entity_decode(trim(preg_replace('/\s+/m', ' ', (string)$cat)));
-            
+            $itemName = html_entity_decode(trim(preg_replace('/\s+/m', ' ', (string)$item)));
+
             // is this in tags or categories? We only want categories to become SS Tags
-            if (in_array($cat['domain'], self::$allowed_category_domains) && !in_array($catName, $categories)) {
-                $categories[] = (string) $catName;
+            if ($item['domain'] == $type && !in_array($itemName, $taxonomy)) {
+                $taxonomy[] = (string)$itemName;
             }
         }
-        return join(', ', $categories);
+        return $taxonomy;
+    }
+
+    private function copyImageToAssets($remote, $dir)
+    {
+        $url = (string)$remote;
+        $split = explode("/", $url);
+        $filename = end($split);
+
+        if (strpos($dir, '/assets/') === 0) {
+            $dir = substr($dir, strlen('/assets/'));
+        }
+
+        /** @var Folder $folder */
+        $folder = Folder::find_or_make($dir);
+        $folderName = $folder->Filename;
+
+        $absPath = Controller::join_links(Director::baseFolder(), $folderName, $filename);
+
+        if (!file_exists($absPath)) {
+            $check = File::get()->filter('Filename', $folderName . $filename);
+            foreach ($check as $item) {
+                $item->delete();
+            }
+
+            // Lets get that image!
+            if (copy($url, $absPath)) {
+                $imageName = basename($absPath);
+
+                if ($id = $folder->constructChild($imageName)) {
+                    /** @var File $file */
+                    $file = File::get()->byID($id);
+                    return $file->getFilename();
+                }
+            }
+        }
+
+        return $folderName . $filename;
     }
 
     /**
@@ -87,8 +124,35 @@ class WpParser
     public function ParseBlogContent($content)
     {
 
+        $fetchImageRegex = '/(http(s?):\/\/[\w\.\/]+)?\/wp-content\/uploads\/(\d{4})\/(\d{2})\/([A-Za-z0-9-_]+)\.(jpg|png|gif|bmp|jpeg)/i';
+
         // Convert wordpress-style image links to silverstripe asset filepaths
-        $content = preg_replace('/(http:\/\/[\w\.\/]+)?\/wp-content\/uploads\//i', '/assets/Uploads/', $content);
+        $locationBlogImages = Config::inst()->get('BlogImport', 'BlogImageFolder');
+        if (empty($locationBlogImages)) {
+            $locationBlogImages = '/assets/blog/';
+        }
+
+        $process = [];
+
+        preg_match_all($fetchImageRegex, $content, $matches);
+
+        if (!empty($matches[0])) {
+            foreach ($matches[0] as $imageURL) {
+                // avoid duplicate images
+                if (!in_array($imageURL, $process, true)) {
+                    $process[] = $imageURL;
+                }
+            }
+
+            foreach ($process as $image) {
+                $imageName = $this->copyImageToAssets($image, $locationBlogImages);
+            }
+
+        }
+
+        // replace to new URLs anyway
+        $replaceImageRegex = '/(http(s?):\/\/[\w\.\/]+)?\/wp-content\/uploads\/(\d{4})\/(\d{2})/i';
+        $content = preg_replace($replaceImageRegex, $locationBlogImages, $content);
 
         // Split multi-line blocks into paragraphs
         $split = preg_split('/\s*\n\s*\n\s*/im', $content);
@@ -98,16 +162,13 @@ class WpParser
             if (empty($paragraph)) {
                 continue;
             }
-            
+
             if (preg_match('/^<p>.*/i', $paragraph)) {
                 $content .= $paragraph;
             } else {
                 $content .= "<p>$paragraph</p>";
             }
         }
-        
-        // Split single-line blocks with line-breaks
-        $content = nl2br($content);
 
         return $content;
     }
@@ -120,11 +181,12 @@ class WpParser
     protected function parseComment($comment)
     {
         return array(
-            'Name' => (string) $comment->comment_author,
-            'Email' => (string) $comment->comment_author_email,
-            'URL' => (string) $comment->comment_author_url,
-            'Comment' => (string) $comment->comment_content,
-            'Created' => (string) $comment->comment_date,
+            'Name' => (string)$comment->comment_author,
+            'Email' => (string)$comment->comment_author_email,
+            'URL' => (string)$comment->comment_author_url,
+            'BaseClass' => (string)"SiteTree",
+            'Comment' => (string)$comment->comment_content,
+            'Created' => (string)$comment->comment_date,
             'Moderated' => !!$comment->comment_approved,
             'WordpressID' => intval($comment->comment_id)
         );
@@ -138,7 +200,7 @@ class WpParser
     protected function parseComments($wp_ns)
     {
 
-        // Array of comments of a post 
+        // Array of comments of a post
         $comments = array();
         foreach ($wp_ns->comment as $comment) {
             $comments[] = $this->parseComment($comment);
@@ -148,7 +210,7 @@ class WpParser
 
     /**
      * Parses a single blog post
-     * @param mixed $item The XML object containing the blog post
+     * @param mixed $item       The XML object containing the blog post
      * @param mixed $namespaces The XML object containing namespace identifiers
      * @return array The blog post encoded as an array
      */
@@ -165,13 +227,14 @@ class WpParser
         }
 
         return array(
-            'Title' => (string) $item->title,
-            'Link' => (string) $item->link,
-            'Author' => (string) $dc_ns->creator,
-            'Tags' => $this->ParseTags($item->category),
-            'Content' => $this->ParseBlogContent((string) $content_ns->encoded),
-            'URLSegment' => (string) $wp_ns->post_name,
-            'Date' => (string) $wp_ns->post_date,
+            'Title' => (string)$item->title,
+            'Link' => (string)$item->link,
+            'AuthorLogin' => (string)$dc_ns->creator, //use this to lookup Member object
+            'Tags' => $this->ParseTaxonomy($item->category, 'post_tag'), //use this to generate BlogTag objects
+            'Categories' => $this->ParseTaxonomy($item->category, 'category'), //use this to generate BlogCategory objects
+            'Content' => $this->ParseBlogContent((string)$content_ns->encoded),
+            'URLSegment' => (string)$wp_ns->post_name,
+            'PublishDate' => (string)$wp_ns->post_date,
             'Comments' => $this->parseComments($wp_ns),
             'WordpressID' => intval($wp_ns->post_id),
             'ProvideComments' => ($wp_ns->comment_status == 'open'),
@@ -184,7 +247,7 @@ class WpParser
      * @return array of posts
      */
 
-    public function parse()
+    public function parseposts()
     {
         $namespaces = $this->namespaces;
 
@@ -197,4 +260,32 @@ class WpParser
         }
         return $this->posts = $posts;
     }
+
+    /*
+    * Parses xml in $simple_xml to array of blog authors
+    * @return array of authors
+    */
+
+    public function parseauthors()
+    {
+        $namespaces = $this->namespaces;
+
+        $authors = array();
+        foreach ($this->simple_xml->channel->children($namespaces['wp'])->author as $author) {
+
+            if (!$firstName = (string)$author->author_first_name) {
+                $firstName = (string)$author->author_display_name;
+            }
+
+            $authors[] = array(
+                'Email' => (string)$author->author_email,
+                'FirstName' => (string)$firstName,
+                'Surname' => (string)$author->author_last_name,
+                'Login' => (string)$author->author_login
+            );
+        }
+        return $authors;
+    }
+
+
 }

@@ -2,7 +2,7 @@
 require('WpParser.php');
 
 /*
- * Decorates a BlogHolder page type, specified in _config.php
+ * Decorates a Blog page type, specified in _config
  */
 
 class WpImporter extends DataExtension
@@ -10,8 +10,9 @@ class WpImporter extends DataExtension
 
     public function updateCMSFields(FieldList $fields)
     {
-        $html_str = '<iframe name="WpImport" src="WpImporter_Controller/index/' . $this->owner->ID . '" width="500"> </iframe>';
-        $fields->addFieldToTab('Root.Import', new LiteralField("ImportIframe", $html_str));
+        $html_str = '<iframe name="WpImport" src="WpImporter_Controller/index/' . $this->owner->ID . '" width="500" style="width:100%;" height="500"> </iframe>';
+
+        $fields->addFieldToTab('Root.Import', LiteralField::create("ImportIframe", $html_str));
     }
 }
 
@@ -33,7 +34,7 @@ class WpImporter_Controller extends Controller
         }
 
         // Check for requirements
-        if (!class_exists('BlogHolder')) {
+        if (!class_exists('Blog')) {
             user_error('Please install the blog module before importing from Wordpress', E_USER_ERROR);
         }
     }
@@ -43,10 +44,10 @@ class WpImporter_Controller extends Controller
         return $this->renderWith('WpImporter');
     }
 
-    protected function getBlogHolderID()
+    protected function getBlogID()
     {
-        if (isset($_REQUEST['BlogHolderID'])) {
-            return $_REQUEST['BlogHolderID'];
+        if (isset($_REQUEST['BlogID'])) {
+            return $_REQUEST['BlogID'];
         }
 
         return $this->request->param('ID');
@@ -59,13 +60,13 @@ class WpImporter_Controller extends Controller
     public function UploadForm()
     {
         return Form::create($this, "UploadForm",
-                        FieldList::create(
-                            FileField::create("XMLFile", 'Wordpress XML file'),
-                            HiddenField::create("BlogHolderID", '', $this->getBlogHolderID())
-                        ),
-                        FieldList::create(
-                            FormAction::create('doUpload', 'Import Wordpress XML file')
-                        )
+            FieldList::create(
+                FileField::create("XMLFile", 'Wordpress XML file'),
+                HiddenField::create("BlogID", '', $this->getBlogID())
+            ),
+            FieldList::create(
+                FormAction::create('doUpload', 'Import Wordpress XML file')
+            )
         );
     }
 
@@ -95,39 +96,85 @@ class WpImporter_Controller extends Controller
 
     protected function getOrCreatePost($wordpressID)
     {
-        if ($wordpressID && $post = BlogEntry::get()->filter(array('WordpressID' => $wordpressID))->first()) {
+        if ($wordpressID && $post = Versioned::get_by_stage('BlogPost', 'Stage')->filter(array('WordpressID' => $wordpressID))->first()) {
             return $post;
         }
 
-        return BlogEntry::create();
+        return BlogPost::create();
     }
 
     protected function importPost($post)
     {
+        // work in Stage mode first
+        $old = Versioned::get_reading_mode();
+        Versioned::set_reading_mode('Stage.Stage');
+
         // create a blog entry
         $entry = $this->getOrCreatePost($post['WordpressID']);
 
-        $entry->ParentID = $this->getBlogHolderID();
+        $entry->ParentID = $this->getBlogID();
 
         // $posts array and $entry have the same key/field names
         // so we can use update here.
-
         $entry->update($post);
+        $entry->write(); // writing to Stage
 
-        //Create an initial write as a draft copy otherwise a write() 
-        //in SS3.1.2+ will go live and never have a draft Version.
-        //@see http://doc.silverstripe.org/framework/en/changelogs/3.1.2#default-current-versioned-
-        //stage-to-live-rather-than-stage for details.
-        $entry->writeToStage('Stage');
-        
-        //If the post was published on WP, now ensure it is also live in SS.
+        // update title again; otherwise the title is "New blog post"
+        $entry->Title = $post['Title'];
+        $entry->writeWithoutVersion(); // no version increase please
+
+        //Create and attach tags
+        foreach ($post['Tags'] as $tag) {
+
+            //check if it already exists
+            if (!$blogtag = BlogTag::get()->filter(array('Title' => $tag))->first()) {
+                $blogtag = BlogTag::create();
+                $blogtag->Title = $tag;
+                $blogtag->BlogID = $entry->ParentID;
+                $blogtag->write();
+            }
+            $entry->Tags()->add($blogtag);
+
+        }
+
+        //Create and attach categories
+        foreach ($post['Categories'] as $category) {
+
+            //check if it already exists
+            if (!$blogcategory = BlogCategory::get()->filter(array('Title' => $category))->first()) {
+                $blogcategory = BlogCategory::create();
+                $blogcategory->Title = $category;
+                $blogcategory->BlogID = $entry->ParentID;
+                $blogcategory->write();
+            }
+            $entry->Categories()->add($blogcategory);
+
+        }
+
         if ($post['IsPublished']) {
             $entry->publish("Stage", "Live");
         }
 
         $this->importComments($post, $entry);
 
+        // restore the reading mode to the original
+        Versioned::set_reading_mode($old);
+
         return $entry;
+    }
+
+    protected function importAuthor($author)
+    {
+        //check if a user already exists with this email address if they do get the object and add the wp username
+        if (!$member = Member::get()->filter(array('Email' => $author['Email']))->first()) {
+            $member = Member::create();
+
+            $member->FirstName = $author['FirstName'];
+            $member->Email = $author['Email'];
+        }
+
+        $member->write();
+
     }
 
     public function doUpload($data, $form)
@@ -147,9 +194,18 @@ class WpImporter_Controller extends Controller
             die;
         }
 
-        // Parse posts
         $wp = new WpParser($file['tmp_name']);
-        $posts = $wp->parse();
+
+        //Parse authors
+        $authors = $wp->parseauthors();
+        foreach ($authors as $author) {
+            $this->importAuthor($author);
+        }
+
+        // Parse posts
+        $posts = $wp->parseposts();
+
+        Versioned::set_reading_mode('Stage.Stage');
         foreach ($posts as $post) {
             $this->importPost($post);
         }

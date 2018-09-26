@@ -1,17 +1,17 @@
 <?php
 /*
- * WpParser class 
+ * WpParser class
  * Version		0.1
  * By			Saophalkun Ponlu @ Silverstripe
  *
- * This class is responsible for parsing Wordpress XML file into array of post entries. 
+ * This class is responsible for parsing Wordpress XML file into array of post entries.
  * Post entry itself is an array containing entry data
  * Post entry (array):
  * 		Title 			(mapped to SS blog entry)
- * 		Link 
+ * 		Link
  * 		Author 			(mapped to SS blog entry)
  * 		Date 			(mapped to SS blog entry)
- * 		UrlTitle 
+ * 		UrlTitle
  * 		Tags 			(mapped to SS blog entry)
  * 		Content 		(mapped to SS blog entry)
  * 		Comments (array)
@@ -76,6 +76,43 @@ class WpParser
         return $taxonomy;
     }
 
+    private function copyImageToAssets($remote, $dir)
+    {
+        $url = (string) $remote;
+        $split = explode("/", $url);
+        $filename = end($split);
+
+        if (strpos($dir, '/assets/') === 0) {
+            $dir = substr($dir, strlen('/assets/'));
+        }
+
+        /** @var Folder $folder */
+        $folder = Folder::find_or_make($dir);
+        $folderName = $folder->Filename;
+
+        $absPath = Controller::join_links(Director::baseFolder(), $folderName, $filename);
+
+        if (!file_exists($absPath)) {
+            $check = File::get()->filter('Filename', $folderName.$filename);
+            foreach ($check as $item) {
+                $item->delete();
+            }
+
+            // Lets get that image!
+            if (copy($url, $absPath)) {
+                $imageName = basename($absPath);
+
+                if ($id = $folder->constructChild($imageName)) {
+                    /** @var File $file */
+                    $file = File::get()->byID($id);
+                    return $file->getFilename();
+                }
+            }
+        }
+
+        return $folderName.$filename;
+    }
+
     /**
      * Parses and cleans up the body of the wordpress blog post
      * @param mixed $content_ns The XML object containing the wordpress post body
@@ -84,18 +121,35 @@ class WpParser
     public function ParseBlogContent($content)
     {
 
-        //  read config option, if not set default to 'uploads'
-        $regex = Config::inst()->get('BlogImport', 'ImageReplaceRegx');
-        if (empty($regex)) {
-            $regex = '/(http(s?):\/\/[\w\.\/]+)?\/wp-content\/uploads\/(\d{4})\/(\d{2})\//i';
-        }
+        $fetchImageRegex = '/(http(s?):\/\/[\w\.\/]+)?\/wp-content\/uploads\/(\d{4})\/(\d{2})\/([A-Za-z0-9-_]+)\.(jpg|png|gif|bmp|jpeg)/i';
 
         // Convert wordpress-style image links to silverstripe asset filepaths
         $locationBlogImages = Config::inst()->get('BlogImport', 'BlogImageFolder');
         if (empty($locationBlogImages)) {
-            $locationBlogImages = '/assets/Uploads/blog/';
+            $locationBlogImages = '/assets/blog/';
         }
-        $content = preg_replace($regex, $locationBlogImages, $content);
+
+        $process = [];
+
+        preg_match_all($fetchImageRegex, $content, $matches);
+
+        if (!empty($matches[0])) {
+            foreach($matches[0] as $imageURL) {
+                // avoid duplicate images
+                if (!in_array($imageURL, $process, true)) {
+                    $process[] = $imageURL;
+                }
+            }
+
+            foreach($process as $image) {
+                $imageName = $this->copyImageToAssets($image, $locationBlogImages);
+            }
+
+        }
+
+        // replace to new URLs anyway
+        $replaceImageRegex = '/(http(s?):\/\/[\w\.\/]+)?\/wp-content\/uploads\/(\d{4})\/(\d{2})/i';
+        $content = preg_replace($replaceImageRegex, $locationBlogImages, $content);
 
         // Split multi-line blocks into paragraphs
         $split = preg_split('/\s*\n\s*\n\s*/im', $content);
@@ -143,7 +197,7 @@ class WpParser
     protected function parseComments($wp_ns)
     {
 
-        // Array of comments of a post 
+        // Array of comments of a post
         $comments = array();
         foreach ($wp_ns->comment as $comment) {
             $comments[] = $this->parseComment($comment);

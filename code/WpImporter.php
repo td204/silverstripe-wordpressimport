@@ -119,15 +119,6 @@ class WpImporter_Controller extends Controller
         // but we will override that below
         $entry->write();
 
-        //Assign the author as a Member object
-        //TODO deal with XML that doesn't define authors
-        if($author = Member::get()->filter(array('WordpressAuthorLogin' => $post['AuthorLogin']))->first()) {
-            //We need to remove the default admin author assigned when the BlogPost object gets created with no data
-            //TODO this is not acting as expected default admin still be added.
-            $entry->Authors()->RemoveAll();
-            $entry->Authors()->add($author);
-        }
-
         //Create and attach tags
         foreach($post['Tags'] as $tag){
 
@@ -168,18 +159,15 @@ class WpImporter_Controller extends Controller
 
     protected function importAuthor($author)
     {
-
         //check if a user already exists with this email address if they do get the object and add the wp username
         if(!$member = Member::get()->filter(array('Email' => $author['Email']))->first())
         {
-
            $member = Member::create();
 
            $member->FirstName = $author['FirstName'];
            $member->Email = $author['Email'];
         }
 
-        $member->WordpressAuthorLogin = $author['Login'];
         $member->write();
 
     }

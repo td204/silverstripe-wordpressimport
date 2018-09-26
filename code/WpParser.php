@@ -91,7 +91,11 @@ class WpParser
         }
 
         // Convert wordpress-style image links to silverstripe asset filepaths
-        $content = preg_replace($regex, '/assets/Uploads/', $content);
+        $locationBlogImages = Config::inst()->get('BlogImport', 'BlogImageFolder');
+        if (empty($locationBlogImages)) {
+            $locationBlogImages = '/assets/Uploads/blog/';
+        }
+        $content = preg_replace($regex, $locationBlogImages, $content);
 
         // Split multi-line blocks into paragraphs
         $split = preg_split('/\s*\n\s*\n\s*/im', $content);

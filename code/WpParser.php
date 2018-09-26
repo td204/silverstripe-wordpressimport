@@ -87,7 +87,7 @@ class WpParser
         //  read config option, if not set default to 'uploads'
         $regex = Config::inst()->get('BlogImport', 'ImageReplaceRegx');
         if (empty($regex)) {
-            $regex = '(http(s?):\/\/[\w\.\/]+)?\/wp-content\/uploads\/(\d{4})\/(\d{2})\//i';
+            $regex = '/(http(s?):\/\/[\w\.\/]+)?\/wp-content\/uploads\/(\d{4})\/(\d{2})\//i';
         }
 
         // Convert wordpress-style image links to silverstripe asset filepaths

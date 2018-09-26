@@ -67,10 +67,10 @@ class WpParser
 
             // Cleanup multiline and other whitespace characters
             $itemName = html_entity_decode(trim(preg_replace('/\s+/m', ' ', (string)$item)));
-            
+
             // is this in tags or categories? We only want categories to become SS Tags
             if ($item['domain'] == $type && !in_array($itemName, $taxonomy)) {
-                $taxonomy[] = (string) $itemName;
+                $taxonomy[] = (string)$itemName;
             }
         }
         return $taxonomy;
@@ -87,7 +87,7 @@ class WpParser
         //  read config option, if not set default to 'uploads'
         $regex = Config::inst()->get('BlogImport', 'ImageReplaceRegx');
         if (empty($regex)) {
-            $regex = '/(http:\/\/[\w\.\/]+)?\/wp-content\/uploads\//i';
+            $regex = '(http(s?):\/\/[\w\.\/]+)?\/wp-content\/uploads\/(\d{4})\/(\d{2})\//i';
         }
 
         // Convert wordpress-style image links to silverstripe asset filepaths
@@ -101,7 +101,7 @@ class WpParser
             if (empty($paragraph)) {
                 continue;
             }
-            
+
             if (preg_match('/^<p>.*/i', $paragraph)) {
                 $content .= $paragraph;
             } else {
@@ -120,12 +120,12 @@ class WpParser
     protected function parseComment($comment)
     {
         return array(
-            'Name' => (string) $comment->comment_author,
-            'Email' => (string) $comment->comment_author_email,
-            'URL' => (string) $comment->comment_author_url,
-            'BaseClass' => (string) "SiteTree",
-            'Comment' => (string) $comment->comment_content,
-            'Created' => (string) $comment->comment_date,
+            'Name' => (string)$comment->comment_author,
+            'Email' => (string)$comment->comment_author_email,
+            'URL' => (string)$comment->comment_author_url,
+            'BaseClass' => (string)"SiteTree",
+            'Comment' => (string)$comment->comment_content,
+            'Created' => (string)$comment->comment_date,
             'Moderated' => !!$comment->comment_approved,
             'WordpressID' => intval($comment->comment_id)
         );
@@ -149,7 +149,7 @@ class WpParser
 
     /**
      * Parses a single blog post
-     * @param mixed $item The XML object containing the blog post
+     * @param mixed $item       The XML object containing the blog post
      * @param mixed $namespaces The XML object containing namespace identifiers
      * @return array The blog post encoded as an array
      */
@@ -166,14 +166,14 @@ class WpParser
         }
 
         return array(
-            'Title' => (string) $item->title,
-            'Link' => (string) $item->link,
-            'AuthorLogin' => (string) $dc_ns->creator, //use this to lookup Member object
-            'Tags' => $this->ParseTaxonomy($item->category,'post_tag'), //use this to generate BlogTag objects
+            'Title' => (string)$item->title,
+            'Link' => (string)$item->link,
+            'AuthorLogin' => (string)$dc_ns->creator, //use this to lookup Member object
+            'Tags' => $this->ParseTaxonomy($item->category, 'post_tag'), //use this to generate BlogTag objects
             'Categories' => $this->ParseTaxonomy($item->category, 'category'), //use this to generate BlogCategory objects
-            'Content' => $this->ParseBlogContent((string) $content_ns->encoded),
-            'URLSegment' => (string) $wp_ns->post_name,
-            'PublishDate' => (string) $wp_ns->post_date,
+            'Content' => $this->ParseBlogContent((string)$content_ns->encoded),
+            'URLSegment' => (string)$wp_ns->post_name,
+            'PublishDate' => (string)$wp_ns->post_date,
             'Comments' => $this->parseComments($wp_ns),
             'WordpressID' => intval($wp_ns->post_id),
             'ProvideComments' => ($wp_ns->comment_status == 'open'),
@@ -212,15 +212,15 @@ class WpParser
         $authors = array();
         foreach ($this->simple_xml->channel->children($namespaces['wp'])->author as $author) {
 
-            if(!$firstName = (string) $author->author_first_name){
-                $firstName = (string) $author->author_display_name;
+            if (!$firstName = (string)$author->author_first_name) {
+                $firstName = (string)$author->author_display_name;
             }
 
             $authors[] = array(
-                'Email' => (string) $author->author_email,
-                'FirstName' => (string) $firstName,
-                'Surname' => (string) $author->author_last_name,
-                'Login' => (string) $author->author_login
+                'Email' => (string)$author->author_email,
+                'FirstName' => (string)$firstName,
+                'Surname' => (string)$author->author_last_name,
+                'Login' => (string)$author->author_login
             );
         }
         return $authors;

@@ -113,11 +113,14 @@ class WpImporter_Controller extends Controller
         // so we can use update here.
         $entry->update($post);
 
+        // otherwise the title is "New blog post"
+        $entry->Title = $post['Title'];
+
         // write this post to the database before modifying the list of authors
         // because of the onBeforeWrite logic in BlogPost->onBeforeWrite
         // this will use the current logged in user as the author of this post
         // but we will override that below
-        $entry->write();
+        $entry->writeToStage('Stage');
 
         //Create and attach tags
         foreach($post['Tags'] as $tag){
@@ -147,9 +150,9 @@ class WpImporter_Controller extends Controller
 
         }
 
-        $entry->write();
         if ($post['IsPublished']) {
             $entry->publish("Stage", "Live");
+            $entry->write();
         }
 
         $this->importComments($post, $entry);

@@ -1,4 +1,4 @@
-<?php
+    <?php
 
 /**
  * Wordpress import class which handles the actual import.
@@ -388,12 +388,17 @@ class WordpressImporter extends Object
 
             // Check for existing post
             if ($post->post_type == "post" && !array_key_exists((string)$post->post_id, $this->posts)) {
+
+                // work in Stage mode first
+                $old = Versioned::get_reading_mode();
+                Versioned::set_reading_mode('Stage.Stage');
+
                 $blogPost = BlogPost::create();
                 $blogPost->Title = (string)$item->title;
                 $blogPost->MetaTitle = (string)$item->title;
                 $blogPost->MetaDescription = (string)$excerpt;
                 $blogPost->URLSegment = (string)$post->post_name;
-                $blogPost->setCastedField("PublishDate", $post->post_date_gmt);
+                $blogPost->setCastedField("PublishDate", (string) $post->post_date_gmt);
                 $blogPost->Content = (string)$this->parseHTML($content);
                 $blogPost->WordpressID = (string)$post->post_id;
                 $blogPost->ParentID = $this->getBlog()->ID;
@@ -402,17 +407,26 @@ class WordpressImporter extends Object
                 $this->extend("beforeImportBlogPost", $item, $blogPost);
 
                 if (!$this->isDryRun()) {
-                    $blogPost->writeToStage("Stage");
+                    $blogPost->write();
+
+                    // update title again; otherwise the title is "New blog post"
+                    $blogPost->Title = (string)$item->title;
+                    $blogPost->writeWithoutVersion(); // no version increase please
+
                     if ((string)$post->status == "publish") {
                         $blogPost->publish("Stage", "Live");
                     }
                 }
+
+                // restore the reading mode to the original
+                Versioned::set_reading_mode($old);
 
                 $this->posts[$blogPost->WordpressID] = $blogPost;
                 $this->addImportedObject("BlogPost", $blogPost);
 
                 // Add attachments
                 $this->addAttachments($item, $blogPost);
+
             }
         }
     }
@@ -442,30 +456,27 @@ class WordpressImporter extends Object
                     } else {
                         $dir = Controller::join_links('Imported');
                     }
-
                     $folder = $dir;
+                    /** @var Folder $folder */
+                    $folder = Folder::find_or_make($dir);
                     if (!$this->isDryRun()) {
-                        $folder = Folder::find_or_make($dir);
-                        $folder = $folder->Filename;
-                    }
 
-                    $filename = Controller::join_links(Director::baseFolder(), $folder, $filename);
-                    if (!file_exists($filename)) {
-                        if (!$this->isDryRun()) {
+                        $filename = Controller::join_links(Director::baseFolder(), $folder, $filename);
+                        if (!file_exists($filename)) {
                             // Lets get that image!
-                            $source = fopen($url, 'r');
-                            $dest = fopen($filename, 'w');
-                            if ($source && $dest) {
-                                stream_copy_to_stream($source, $dest);
+                            if (@copy($url, $absPath)) {
+                                $imageName = basename($absPath);
+
+                                if ($id = $folder->constructChild($imageName)) {
+                                    /** @var File $file */
+                                    $file = File::get()->byID($id);
+                                    $filename = Controller::join_links(Director::baseFolder(), $folder, $file->getFilename());
+                                }
                             }
-                            if ($source) fclose($source);
-                            if ($dest) fclose($dest);
-                            Filesystem::sync();
+
+                            $this->addImportedObject("File", $filename);
                         }
-
-                        $this->addImportedObject("File", $filename);
                     }
-
 
                     // By now we should have a file that exists
                     if (file_exists($filename)) {

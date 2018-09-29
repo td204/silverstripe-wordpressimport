@@ -49,7 +49,7 @@ class WordpressImporter extends Object
      *
      * @var boolean
      **/
-    protected $importAssets = true;
+    protected $importAssets = false;
 
 
     /**
@@ -99,6 +99,12 @@ class WordpressImporter extends Object
      **/
     public $simpleXml;
 
+    /**
+     * Stores the authors temporarily
+     * @var array
+     */
+    protected $authors = array();
+
 
     public function import()
     {
@@ -140,6 +146,11 @@ class WordpressImporter extends Object
             ->filter("ParentID", $this->getBlog()->ID)
             ->map("WordpressID", "ID");
         if ($posts) $this->posts = $posts->toArray();
+
+        $importAssets = Config::inst()->get('BlogImport', 'ImportAssets');
+        if (!empty($importAssets)) {
+            $this->setImportAssets($importAssets);
+        }
 
         $this->extend("setup");
     }
@@ -278,14 +289,11 @@ class WordpressImporter extends Object
             $this->simpleXml = simplexml_load_file($file) or die('Cannot open file.');
             $this->namespaces = $this->simpleXml->getNamespaces(TRUE);
 
+            $this->importAuthors();
             $this->importBlogCategory();
             $this->importBlogTag();
             $this->importBlogPost();
-
-            $importAssets = Config::inst()->get('BlogImport', 'ImportAssets');
-            if (!empty($importAssets)) {
-                $this->importAssets();
-            }
+            $this->importAssets();
 
             $this->extend("importExtras");
 
@@ -302,6 +310,38 @@ class WordpressImporter extends Object
             return $data;
         }
         return array();
+    }
+
+    /**
+     * Parses xml in $simple_xml to array of blog authors
+     * @return array
+     */
+    public function importAuthors()
+    {
+        foreach ($this->simpleXml->channel->children($this->namespaces['wp'])->author as $author) {
+
+            if (!$firstName = (string)$author->author_first_name) {
+                $firstName = (string)$author->author_display_name;
+            }
+
+            $username = (string)$author->author_login;
+
+            if (class_exists('BlogAuthor')) {
+                $blogAuthors = BlogAuthor::get()->filter('Username', (string)$username);
+                $blogAuthor = $blogAuthors->first();
+                if (!$blogAuthor) {
+                    $blogAuthor = new BlogAuthor();
+                    $blogAuthor->DisplayName = (string)$firstName . ' ' . $author->author_last_name;
+                    $blogAuthor->Username = $username;
+                    $blogAuthor->Email = (string)$author->author_email;
+                    $blogAuthor->write();
+                }
+
+                $this->authors[$username] = $blogAuthor;
+            }
+        }
+
+        return $this->authors;
     }
 
 
@@ -378,7 +418,6 @@ class WordpressImporter extends Object
         }
     }
 
-
     /**
      * Import the blog posts and link them up to any attachments.
      *
@@ -390,15 +429,22 @@ class WordpressImporter extends Object
             $content = $item->children($this->namespaces['content'])->encoded;
             $excerpt = $item->children($this->namespaces['excerpt'])->encoded;
             $post = $item->children($this->namespaces['wp']);
+            $dc = $item->children($this->namespaces['dc']);
 
             // Check for existing post
             if ($post->post_type == "post" && !array_key_exists((string)$post->post_id, $this->posts)) {
+
+                $authorID = null;
+                if (!empty($this->authors[(string)$dc->creator])) {
+                    $authorID = $this->authors[(string)$dc->creator]->ID;
+                }
 
                 // work in Stage mode first
                 $old = Versioned::get_reading_mode();
                 Versioned::set_reading_mode('Stage.Stage');
 
                 $blogPost = BlogPost::create();
+                $blogPost->AuthorID = $authorID;
                 $blogPost->Title = (string)$item->title;
                 $blogPost->MetaTitle = (string)$item->title;
                 $blogPost->MetaDescription = (string)$excerpt;

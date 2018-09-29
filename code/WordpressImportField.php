@@ -86,7 +86,7 @@ class WordpressImportField extends UploadField
      *
      * @return SS_HTTPResponse
      **/
-    public function evaluate(SS_HTTRequest $request)
+    public function evaluate(SS_HTTPRequest $request)
     {
         $this->dryRun = true;
         return $this->import($request);

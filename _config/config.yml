@@ -1,8 +1,8 @@
 ---
 Name: wordpressimport
 After:
-- 'framework/*'
-- 'cms/*'
+  - 'framework/*'
+  - 'cms/*'
 ---
 Director:
   rules:
@@ -10,18 +10,18 @@ Director:
     'import//$Action': 'WordpressParser'
 File:
   allowed_extensions:
-  - xml
+    - xml
 ---
 Only:
   moduleexists: 'blog'
 ---
 Blog:
   extensions:
-  - 'WordpressImportBlogExtension'
+    - 'WordpressImportBlogExtension'
 
 BlogPost:
   extensions:
-  - 'WpImportedObject'
+    - 'WpImportedObject'
 
 
 ---
@@ -30,8 +30,8 @@ Only:
 ---
 Comment:
   extensions:
-  - 'WpImportedObject'
+    - 'WpImportedObject'
 
 WordpressParser:
   extensions:
-  - 'WordpressCommentImport'
+    - 'WordpressCommentImport'

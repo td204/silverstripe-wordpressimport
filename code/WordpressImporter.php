@@ -1,4 +1,4 @@
-    <?php
+<?php
 
 /**
  * Wordpress import class which handles the actual import.
@@ -281,7 +281,12 @@ class WordpressImporter extends Object
             $this->importBlogCategory();
             $this->importBlogTag();
             $this->importBlogPost();
-            $this->importAssets();
+
+            $importAssets = Config::inst()->get('BlogImport', 'ImportAssets');
+            if (!empty($importAssets)) {
+                $this->importAssets();
+            }
+
             $this->extend("importExtras");
 
             $data = array();
@@ -398,7 +403,7 @@ class WordpressImporter extends Object
                 $blogPost->MetaTitle = (string)$item->title;
                 $blogPost->MetaDescription = (string)$excerpt;
                 $blogPost->URLSegment = (string)$post->post_name;
-                $blogPost->setCastedField("PublishDate", (string) $post->post_date_gmt);
+                $blogPost->setCastedField("PublishDate", (string)$post->post_date_gmt);
                 $blogPost->Content = (string)$this->parseHTML($content);
                 $blogPost->WordpressID = (string)$post->post_id;
                 $blogPost->ParentID = $this->getBlog()->ID;
@@ -456,10 +461,10 @@ class WordpressImporter extends Object
                     } else {
                         $dir = Controller::join_links('Imported');
                     }
-                    $folder = $dir;
-                    /** @var Folder $folder */
-                    $folder = Folder::find_or_make($dir);
+
                     if (!$this->isDryRun()) {
+                        /** @var Folder $folder */
+                        $folder = Folder::find_or_make($dir);
 
                         $filename = Controller::join_links(Director::baseFolder(), $folder, $filename);
                         if (!file_exists($filename)) {
@@ -590,9 +595,35 @@ class WordpressImporter extends Object
      */
     public function parseHTML($content)
     {
+        $fetchImageRegex = '/(http(s?):\/\/[\w\.\/]+)?\/wp-content\/uploads\/(\d{4})\/(\d{2})\/([A-Za-z0-9-_]+)\.(jpg|png|gif|bmp|jpeg)/i';
 
         // Convert wordpress-style image links to silverstripe asset filepaths
-        $content = preg_replace('/(http:\/\/[\w\.\/]+)?\/wp-content\/uploads\//i', '/assets/Uploads/', $content);
+        $locationBlogImages = Config::inst()->get('BlogImport', 'BlogImageFolder');
+        if (empty($locationBlogImages)) {
+            $locationBlogImages = '/assets/blog/';
+        }
+
+        $process = [];
+
+        preg_match_all($fetchImageRegex, $content, $matches);
+
+        if (!empty($matches[0])) {
+            foreach ($matches[0] as $imageURL) {
+                // avoid duplicate images
+                if (!in_array($imageURL, $process, true)) {
+                    $process[] = $imageURL;
+                }
+            }
+
+            foreach ($process as $image) {
+                $imageName = $this->copyImageToAssets($image, $locationBlogImages);
+            }
+
+        }
+
+        // replace to new URLs anyway
+        $replaceImageRegex = '/(http(s?):\/\/[\w\.\/]+)?\/wp-content\/uploads\/(\d{4})\/(\d{2})/i';
+        $content = preg_replace($replaceImageRegex, $locationBlogImages, $content);
 
         // Split multi-line blocks into paragraphs
         $split = preg_split('/\s*\n\s*\n\s*/im', $content);
@@ -609,6 +640,43 @@ class WordpressImporter extends Object
         }
 
         return $content;
+    }
+
+    private function copyImageToAssets($remote, $dir)
+    {
+        $url = (string)$remote;
+        $split = explode("/", $url);
+        $filename = end($split);
+
+        if (strpos($dir, '/assets/') === 0) {
+            $dir = substr($dir, strlen('/assets/'));
+        }
+
+        /** @var Folder $folder */
+        $folder = Folder::find_or_make($dir);
+        $folderName = $folder->Filename;
+
+        $absPath = Controller::join_links(Director::baseFolder(), $folderName, $filename);
+
+        if (!file_exists($absPath)) {
+            $check = File::get()->filter('Filename', $folderName . $filename);
+            foreach ($check as $item) {
+                $item->delete();
+            }
+
+            // Lets get that image!
+            if (@copy($url, $absPath)) {
+                $imageName = basename($absPath);
+
+                if ($id = $folder->constructChild($imageName)) {
+                    /** @var File $file */
+                    $file = File::get()->byID($id);
+                    return $file->getFilename();
+                }
+            }
+        }
+
+        return $folderName . $filename;
     }
 
 }

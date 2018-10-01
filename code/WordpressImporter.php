@@ -8,7 +8,7 @@
  *
  * @author     Michael Strong <micmania@hotmail.co.uk>
  **/
-class WordpressImporter extends Object
+class WordpressImporter extends SS_Object
 {
 
     /**

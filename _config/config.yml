@@ -6,7 +6,6 @@ After:
 ---
 Director:
   rules:
-    'WpImporter_Controller//$Action/$ID/$OtherID': 'WpImporter_Controller'
     'import//$Action': 'WordpressParser'
 File:
   allowed_extensions:
@@ -18,10 +17,9 @@ Only:
 Blog:
   extensions:
     - 'WordpressImportBlogExtension'
-
 BlogPost:
   extensions:
-    - 'WpImportedObject'
+    - 'WordpressImportedObject'
 
 
 ---

@@ -131,21 +131,31 @@ class WordpressImporter extends SS_Object
     {
         // Setup categories
         $categories = BlogCategory::get()
-            ->filter("BlogID", $this->getBlog()->ID)
-            ->map("Title", "URLSegment");
-        if ($categories) $this->categories = $categories->toArray();
+            ->filter("BlogID", $this->getBlog()->ID);
+        if ($categories) {
+            foreach($categories as $category) {
+                $this->categories[$category->Title] = $category;
+            }
+        }
 
         // Setup tags
         $tags = BlogTag::get()
-            ->filter("BlogID", $this->getBlog()->ID)
-            ->map("Title", "URLSegment");
-        if ($tags) $this->tags = $tags->toArray();
+            ->filter("BlogID", $this->getBlog()->ID);
+        if ($tags) {
+            foreach($tags as $tag) {
+                $this->tags[$tag->Title] = $tag;
+            }
+        }
 
         // Setup posts
         $posts = BlogPost::get()
             ->filter("ParentID", $this->getBlog()->ID)
             ->map("WordpressID", "ID");
-        if ($posts) $this->posts = $posts->toArray();
+        if ($posts) {
+            foreach($posts as $post) {
+                $this->posts[$post->WordpressID] = $post;
+            }
+        }
 
         $importAssets = Config::inst()->get('BlogImport', 'ImportAssets');
         if (!empty($importAssets)) {
@@ -622,6 +632,7 @@ class WordpressImporter extends SS_Object
                 $title = trim((string)$element);
                 if (isset($this->categories[$title])) {
                     if (!$this->isDryRun()) {
+                        var_dump($this->categories[$title]);
                         $blogPost->Categories()->add($this->categories[$title]);
                     }
                 } else {

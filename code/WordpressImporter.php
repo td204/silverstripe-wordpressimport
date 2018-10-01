@@ -149,8 +149,7 @@ class WordpressImporter extends SS_Object
 
         // Setup posts
         $posts = BlogPost::get()
-            ->filter("ParentID", $this->getBlog()->ID)
-            ->map("WordpressID", "ID");
+            ->filter("ParentID", $this->getBlog()->ID);
         if ($posts) {
             foreach($posts as $post) {
                 $this->posts[$post->WordpressID] = $post;

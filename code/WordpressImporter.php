@@ -632,7 +632,6 @@ class WordpressImporter extends SS_Object
                 $title = trim((string)$element);
                 if (isset($this->categories[$title])) {
                     if (!$this->isDryRun()) {
-                        var_dump($this->categories[$title]);
                         $blogPost->Categories()->add($this->categories[$title]);
                     }
                 } else {

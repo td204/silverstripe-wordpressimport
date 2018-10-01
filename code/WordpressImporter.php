@@ -434,6 +434,23 @@ class WordpressImporter extends SS_Object
             // Check for existing post
             if ($post->post_type == "post" && !array_key_exists((string)$post->post_id, $this->posts)) {
 
+                $metaDescription = '';
+                $metaTitle = '';
+
+                $postMeta = $post->postmeta;
+                if (is_iterable($postMeta)) {
+                    foreach ($postMeta as $postMetaItem) {
+                        $key = (string) $postMetaItem->meta_key;
+                        $value = (string) $postMetaItem->meta_value;
+
+                        if ('_yoast_wpseo_title' === $key) {
+                            $metaTitle = $value;
+                        } else if ('_yoast_wpseo_metadesc' === $key) {
+                            $metaDescription = $value;
+                        }
+                    }
+                }
+
                 $authorID = null;
                 if (!empty($this->authors[(string)$dc->creator])) {
                     $authorID = $this->authors[(string)$dc->creator]->ID;
@@ -446,8 +463,8 @@ class WordpressImporter extends SS_Object
                 $blogPost = BlogPost::create();
                 $blogPost->AuthorID = $authorID;
                 $blogPost->Title = (string)$item->title;
-                $blogPost->MetaTitle = (string)$item->title;
-                $blogPost->MetaDescription = (string)$excerpt;
+                $blogPost->MetaDescription = !empty($metaDescription) ? $metaDescription : (string)$excerpt;
+                $blogPost->MetaTitle = !empty($metaTitle) ? $metaTitle : (string)$item->title;
                 $blogPost->URLSegment = (string)$post->post_name;
                 $blogPost->setCastedField("PublishDate", (string)$post->post_date_gmt);
                 $blogPost->Content = (string)$this->parseHTML($content);
